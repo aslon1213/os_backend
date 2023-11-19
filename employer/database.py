@@ -4,10 +4,11 @@ from sqlalchemy.orm import sessionmaker, session
 from config import config
 
 MYSQL_URL = config.MYSQL_URL
+SQLITE_URL = config.SQLITE_URL
 
 
 print("INITIALIZING DATABASE")
-engine = create_engine(MYSQL_URL)
+engine = create_engine(SQLITE_URL)
 sessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 Base = declarative_base()
