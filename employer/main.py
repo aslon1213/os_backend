@@ -26,6 +26,7 @@ async def TimeTakenMiddleware(request: Request, call_next: callable):
     """
     response
     """
+
     start_time = time.time()
     response = await call_next(request)
 
