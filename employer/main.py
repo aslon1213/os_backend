@@ -1,8 +1,12 @@
 from typing import Union, Annotated
 from pydantic import BaseModel
-from fastapi import FastAPI, Cookie, Request, Depends
+from fastapi import FastAPI, Cookie, Request, Depends, Response
 from fastapi.templating import Jinja2Templates
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, ORJSONResponse
+import time
+
+# impoer httpresponse
+
 from database import Base, engine, get_db
 from sqlalchemy.orm import Session
 import input_bindings
@@ -16,13 +20,29 @@ db = get_db()
 app = FastAPI()
 
 
-async def Auth_Middleware(request):
-    print(request.headers)
-    if "auth" in request.headers:
+@app.middleware("http")
+async def TimeTakenMiddleware(request: Request, call_next: callable):
+    """
+    response
+    """
+    start_time = time.time()
+    response = await call_next(request)
+
+    # add json to response for time taken
+    response.headers["Content-Type"] = "application/json"
+    # write data response
+    response.headers["X-Time-Taken"] = str(time.time() - start_time)
+    return response
+
+
+@app.middleware("http")
+async def Auth_Middleware(request: Request, call_next):
+    print("In Auth MIddleware")
+    if request.cookies.get("Auth"):
         if valid_auth_token():
-            print("In Auth middleware")
-            return request
-    raise {"error": "not authorized"}
+            response = await call_next(request)
+            return response
+    return Response(status_code=401, content="Not Authorized")
 
 
 def valid_auth_token():
@@ -36,7 +56,6 @@ templates = Jinja2Templates(directory="./templates/")
 async def create_job(request: Request, job: input_bindings.Job):
     job = models.Job(**job.model_dump())
     db.add(job)
-    print(job.__dict__)
     db.commit()
     return templates.TemplateResponse("test.html", {"request": request})
 
