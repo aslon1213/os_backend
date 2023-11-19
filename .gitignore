@@ -1,0 +1,5 @@
+*/.env
+*/test.*
+*/bin/
+*/include/
+*/lib/
