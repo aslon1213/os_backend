@@ -4,3 +4,6 @@
 */include/
 */lib/
 main_gateway/main
+output.json
+output.txt 
+test.py
