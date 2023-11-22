@@ -13,3 +13,4 @@ main_gateway/main.go
 main_gateway/main_test.go
 main_gateway/golang-httpflood/
 main_gateway/ddos/
+termproject/
