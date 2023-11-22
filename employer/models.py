@@ -7,7 +7,7 @@ from sqlalchemy import (
     Float,
     Date,
 )
-from sqlalchemy_utils import EmailType, PasswordType
+from sqlalchemy_utils import EmailType, PasswordType, ChoiceType, Choice
 from database import Base
 
 from sqlalchemy.orm import relationship
@@ -15,13 +15,72 @@ from sqlalchemy.orm import relationship
 
 class JobApplicant(Base):
     __tablename__ = "job_jobseeker"
-    Job_id = Column(Integer, ForeignKey("jobs.id"), primary_key=True, index=True)
-    Applicant_id = Column(
+    job_id = Column(Integer, ForeignKey("jobs.id"), primary_key=True, index=True)
+    applicant_id = Column(
         Integer, ForeignKey("job_seeker.id"), primary_key=True, index=True
     )
-    Status = Column(String(500), index=False)
-    Rejected = Column(Boolean, default=False, index=False)
-    In_considiration = Column(Boolean, default=False, index=False)
+    status = Column(String(500), index=False)
+    rejected = Column(Boolean, default=False, index=False)
+    in_considiration = Column(Boolean, default=False, index=False)
+    applicant_cover_letter = Column(String, index=False)
+
+
+from datetime import datetime
+
+
+class ChatJobSeekerEmployer(Base):
+    __tablename__ = "chats_jobseeker_employer"
+    id = Column(Integer, primary_key=True, unique=True, index=True)
+    job_seeker_id = Column(Integer, ForeignKey("job_seeker.id"), index=False)
+    employer_id = Column(Integer, ForeignKey("employers.id"), index=False)
+
+    def open_chat(self, job_seeker_id, employer_id):
+        chat = ChatJobSeekerEmployer(
+            job_seeker_id=job_seeker_id, employer_id=employer_id
+        )
+        return chat
+
+    def write_message_employer(self, message_body):
+        return Message(
+            sender=self.employer_id,
+            sender_type="employer",
+            message_body=message_body,
+            sent_at=datetime.now(),
+            reciever=self.job_seeker_id,
+            reciever_type="job_seeker",
+            read=False,
+            chat_id=self.id,
+        )
+
+    def write_message_job_seeker(self, message_body):
+        return Message(
+            chat_id=self.id,
+            sender=self.job_seeker_id,
+            sender_type="job_seeker",
+            message_body=message_body,
+            sent_at=datetime.now(),
+            reciever=self.employer_id,
+            reciever_type="employer",
+            read=False,
+        )
+
+
+class Message(Base):
+    __tablename__ = "messages"
+    id = Column(Integer, primary_key=True, unique=True, index=True)
+    chat_id = Column(Integer, ForeignKey("chats.id"), index=False)
+    TYPES = [
+        ("job_seeker", "job_seeker"),
+        ("employer", "employer"),
+        ("admin", "admin"),
+    ]
+    sender = Column(Integer, index=False)
+    sender_type = Column(ChoiceType(TYPES), index=False)
+    message_body = Column(String, index=False)
+    sent_at = Column(Date, index=False)
+    reciever = Column(Integer, index=False)
+    reciever_type = Column(ChoiceType(TYPES), index=False)
+    read = Column(Boolean, default=False, index=False)
 
 
 class JobSeeker(Base):
