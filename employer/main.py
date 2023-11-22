@@ -241,6 +241,41 @@ async def query_jobs(request: Request):
     return response
 
 
+@app.put("/job/{job_id}/send_acceptance/{applicant_id}")
+async def send_acceptance(request: Request, job_id: int, applicant_id: int):
+    token_info = get_info_from_token(request.cookies.get("auth"))
+    job = db.query(models.Job).filter_by(id=job_id).first()
+    if job == None:
+        return Response(
+            status_code=404, content="{'error': 'The job with this id not found'}"
+        )
+    if not job.can_employer_access(token_info["id"]):
+        return Response(
+            status_code=401,
+            content="Not Authorized!!!! You are not the owner of this job",
+        )
+    applicant = (
+        db.query(models.JobApplicant)
+        .filter_by(job_id=job_id, applicant_id=applicant_id)
+        .first()
+    )
+    if applicant == None:
+        return Response(
+            status_code=404, content="{'error': 'The applicant with this id not found'}"
+        )
+    applicant.in_considiration = True
+    chat = models.ChatJobSeekerEmployer().open_chat(applicant_id, token_info["id"])
+    db.add(chat)
+    db.commit()
+    msg = chat.write_message_employer("You are accepted, Congrats ")
+    db.add(msg)
+    db.commit()
+    return {
+        "message": "The applicant is accepted",
+        "id": applicant_id,
+    }
+
+
 @app.put("/job/{job_id}/reject/{applicant_id}")
 async def reject_applicant(request: Request, job_id: int, applicant_id: int):
     token_info = get_info_from_token(request.cookies.get("auth"))
