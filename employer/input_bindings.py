@@ -19,6 +19,10 @@ class Job(BaseModel):
 from time import time
 
 
+class MessageBody(BaseModel):
+    message: str = ""
+
+
 class Company(BaseModel):
     company_name: str
     number_of_employee: int

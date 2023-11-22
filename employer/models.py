@@ -19,9 +19,13 @@ class JobApplicant(Base):
     applicant_id = Column(
         Integer, ForeignKey("job_seeker.id"), primary_key=True, index=True
     )
-    status = Column(String(500), index=False)
-    rejected = Column(Boolean, default=False, index=False)
-    in_considiration = Column(Boolean, default=False, index=False)
+    STATUS_TYPES = [
+        ("pending", "pending"),
+        ("accepted", "accepted"),
+        ("rejected", "rejected"),
+    ]
+    status = Column(ChoiceType(choices=STATUS_TYPES), index=False)
+
     applicant_cover_letter = Column(String, index=False)
 
 
@@ -68,7 +72,7 @@ class ChatJobSeekerEmployer(Base):
 class Message(Base):
     __tablename__ = "messages"
     id = Column(Integer, primary_key=True, unique=True, index=True)
-    chat_id = Column(Integer, ForeignKey("chats.id"), index=False)
+    chat_id = Column(Integer, ForeignKey("chats_jobseeker_employer.id"), index=False)
     TYPES = [
         ("job_seeker", "job_seeker"),
         ("employer", "employer"),

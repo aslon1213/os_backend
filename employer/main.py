@@ -113,9 +113,7 @@ async def create_test_employer(request: Request):
         application = models.JobApplicant()
         application.applicant_id = random.randint(1, 10)
         application.job_id = random.randint(1, 10)
-        application.status = "test status " + str(i)
-        application.in_considiration = random.randint(0, 1)
-        application.rejected = random.randint(0, 1)
+        application.status = "pending"
         db.add(application)
 
     db.commit()
@@ -242,7 +240,12 @@ async def query_jobs(request: Request):
 
 
 @app.put("/job/{job_id}/send_acceptance/{applicant_id}")
-async def send_acceptance(request: Request, job_id: int, applicant_id: int):
+async def send_acceptance(
+    request: Request,
+    job_id: int,
+    applicant_id: int,
+    message: input_bindings.MessageBody,
+):
     token_info = get_info_from_token(request.cookies.get("auth"))
     job = db.query(models.Job).filter_by(id=job_id).first()
     if job == None:
@@ -263,11 +266,11 @@ async def send_acceptance(request: Request, job_id: int, applicant_id: int):
         return Response(
             status_code=404, content="{'error': 'The applicant with this id not found'}"
         )
-    applicant.in_considiration = True
+    applicant.status = "accepted"
     chat = models.ChatJobSeekerEmployer().open_chat(applicant_id, token_info["id"])
     db.add(chat)
     db.commit()
-    msg = chat.write_message_employer("You are accepted, Congrats ")
+    msg = chat.write_message_employer(message.message)
     db.add(msg)
     db.commit()
     return {
@@ -277,7 +280,12 @@ async def send_acceptance(request: Request, job_id: int, applicant_id: int):
 
 
 @app.put("/job/{job_id}/reject/{applicant_id}")
-async def reject_applicant(request: Request, job_id: int, applicant_id: int):
+async def reject_applicant(
+    request: Request,
+    job_id: int,
+    applicant_id: int,
+    message: input_bindings.MessageBody,
+):
     token_info = get_info_from_token(request.cookies.get("auth"))
     job = db.query(models.Job).filter_by(id=job_id).first()
     if job == None:
@@ -298,12 +306,12 @@ async def reject_applicant(request: Request, job_id: int, applicant_id: int):
         return Response(
             status_code=404, content="{'error': 'The applicant with this id not found'}"
         )
-    applicant.rejected = True
+    applicant.status = "rejected"
 
     chat = models.ChatJobSeekerEmployer().open_chat(applicant_id, token_info["id"])
     db.add(chat)
     db.commit()
-    msg = chat.write_message_employer("You are rejected, I am sorry dude ")
+    msg = chat.write_message_employer(message.message)
     db.add(msg)
     db.commit()
     return {
