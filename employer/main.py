@@ -62,18 +62,72 @@ def valid_auth_token():
 templates = Jinja2Templates(directory="./templates/")
 
 
+@app.post("/create_test_employer", response_class=HTMLResponse)
+async def create_test_employer(request: Request):
+    employer = models.Employer()
+    employer.name = "test"
+    employer.email = "hamidovaslon1@gmail.com"
+    employer.password = "test"
+    employer.additional_info = "test"
+    employer.company = 1
+    db.add(employer)
+    db.commit()
+
+
+# CRUD for company
+@app.post("/company")
+async def create_company(request: Request, company: input_bindings.Company):
+    company = models.Company(**company.model_dump())
+    db.add(company)
+    db.commit()
+    return company.__dict__
+
+
+@app.get("/company/{company_id}")
+async def get_company(request: Request, company_id: int):
+    company = db.query(models.Company).filter_by(id=company_id).first()
+    if company == None:
+        return Response(
+            status_code=404, content="{'error': 'The company with this id not found'}"
+        )
+    return company.__dict__
+
+
+@app.put("/company/{company_id}")
+async def edit_company(
+    request: Request, company_input: input_bindings.Company, company_id: int
+):
+    company = db.query(models.Company).filter_by(id=company_id).first()
+    if company == None:
+        return Response(
+            status_code=404, content="{'error': 'The company with this id not found'}"
+        )
+    company_info = company_input.model_dump()
+    for key in company_info:
+        setattr(company, key, company_info[key])
+
+    db.commit()
+    return company.__dict__
+
+
+@app.delete("/company/{company_id}")
+async def delete_company(request: Request, company_id: int):
+    return Response(status_code=501, content="Not Implemented")
+
+
 @app.post("/job", response_class=HTMLResponse)
 async def create_job(request: Request, job: input_bindings.Job):
     job = models.Job(**job.model_dump())
     token_info = get_info_from_token(request.cookies.get("auth"))
-    job.Employer = token_info["id"]
+    job.employer = token_info["id"]
     employer = db.query(models.Employer).filter_by(id=token_info["id"]).first()
-    job.Company = 1
+    job.company = employer.company
     db.add(job)
     db.commit()
     return HTMLResponse(content="Job Created with id " + str(job.id))
 
 
+# to edit the job details
 @app.put("/job/{job_id}")
 async def edit_job(request: Request, job_input: input_bindings.Job, job_id: int):
     token_info = get_info_from_token(request.cookies.get("auth"))
@@ -82,18 +136,18 @@ async def edit_job(request: Request, job_input: input_bindings.Job, job_id: int)
         return Response(
             status_code=404, content="{'error': 'The job with this id not found'}"
         )
-    if job.Employer != int(token_info["id"]):
+    if not job.can_employer_access(token_info["id"]):
         return Response(
             status_code=401,
             content="Not Authorized!!!! You are not the owner of this job",
         )
 
     # update the job
-    job.Name = job_input.Name
-    job.Description = job_input.Description
-    job.Salary = job_input.Salary
-    job.Qualification_required = job_input.Qualification_required
-    job.Experience_required = job_input.Experience_required
+    job.name = job_input.name
+    job.description = job_input.description
+    job.salary = job_input.salary
+    job.qualification_required = job_input.qualification_required
+    job.experience_required = job_input.experience_required
     # update the job
     db.commit()
     return job.__dict__
@@ -122,17 +176,42 @@ async def delete_job(request: Request, job_id: int):
     return job.__dict__
 
 
-@app.get("/job")
+@app.get("job/my")
+async def query_my_jobs(request: Request):
+    response = {}
+    token_info = get_info_from_token(request.cookies.get("auth"))
+    jobs = db.query(models.Job).filter_by(employer=token_info["id"]).all()
+    response["jobs"] = jobs
+    return response
+
+
+@app.get("/job/all")
 async def query_jobs(request: Request):
     response = {}
-    jobs = db.query(models.Job).all()
+    jobs = db.query(models.Job).filter(models.Job.is_open == True).all()
     response["jobs"] = jobs
     print(response)
     return response
 
 
-async def create_job(request: Request):
-    # render the html page
-    # return the html page
-    print(request.headers)
-    return templates.TemplateResponse("test.html", {"request": request})
+@app.put("/job/{job_id}/close")
+async def close_job(request: Request, job_id: int):
+    token_info = get_info_from_token(request.cookies.get("auth"))
+    job = db.query(models.Job).filter_by(id=job_id).first()
+    if job == None:
+        return Response(
+            status_code=404, content="{'error': 'The job with this id not found'}"
+        )
+    if not job.can_employer_access(token_info["id"]):
+        return Response(
+            status_code=401,
+            content="Not Authorized!!!! You are not the owner of this job",
+        )
+    if job.is_open:
+        job.is_open = False
+    else:
+        return {
+            "error": "The job is already closed",
+        }
+    db.commit()
+    return job
