@@ -4,3 +4,12 @@
 */include/
 */lib/
 main_gateway/main
+output.json
+output.txt 
+test.py
+hm13
+hm13.pub
+main_gateway/main.go
+main_gateway/main_test.go
+main_gateway/golang-httpflood/
+main_gateway/ddos/
